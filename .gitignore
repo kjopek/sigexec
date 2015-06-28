@@ -3,7 +3,9 @@ export_syms
 machine
 sigexec.o
 sigexec.ko
+uECC.o
 vnode_if.h
 vnode_if_newproto.h
 vnode_if_typedef.h
 x86
+
