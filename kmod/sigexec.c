@@ -48,11 +48,13 @@
 #include <security/mac/mac_policy.h>
 #include <crypto/sha2/sha2.h>
 
+#include "uECC.h"
+
 void sigexec_init(struct mac_policy_conf *conf);
 void sigexec_destroy(struct mac_policy_conf *conf);
 int sigexec_check_vnode_exec(struct ucred *cred,
-	struct vnode *vp, struct label *label, struct image_params *img_params,
-	struct label *img_label);
+    struct vnode *vp, struct label *label, struct image_params *img_params,
+    struct label *img_label);
 
 void
 sigexec_init(struct mac_policy_conf *conf)
@@ -71,50 +73,50 @@ print_hex(char *buffer, size_t len)
 {
 	size_t i;
 
-	i = 0;
-	for (i = 0; i < len; ++i) {
+	for (i = 0; i < len; ++i)
 		printf("%02hhx", buffer[i]);
-	}
 	printf("\n");
 }
 
 int 
 sigexec_check_vnode_exec(struct ucred *cred,
-	struct vnode *vp,
-	struct label *label,
-	struct image_params *img_params,
-	struct label *img_label)
+    struct vnode *vp,
+    struct label *label,
+    struct image_params *img_params,
+    struct label *img_label)
 {
-	char buffer[256];
-	char hash[SHA256_DIGEST_LENGTH];
-	int error;
+	char buffer[1024];
+	char hash[SHA256_DIGEST_LENGTH > uECC_BYTES ? SHA256_DIGEST_LENGTH : uECC_BYTES];
+	int error, len;
 	ssize_t resid;
+	off_t i, size;
 	SHA256_CTX ctx;
 	struct stat stat;
-	off_t i, size;
 
 	SHA256_Init(&ctx);
-
 	error = vn_stat(vp, &stat, cred, NOCRED, curthread);
 	if (error)
-		return (0);
+		return (EPERM);
 
 	size = stat.st_size;
-	printf("File size: %llu\n", (unsigned long long) size);
-	for (i = 0; i < size && !error; i += sizeof(buffer)) {
-		error = vn_rdwr(UIO_READ, vp, buffer, sizeof(buffer), i,
+	printf("size: %llu, modulo: %llu, offset: %llu\n", (unsigned long long) size,
+	    (unsigned long long) size % sizeof(buffer), (unsigned long long) size - size % sizeof(buffer));
+	i = 0;
+	while(i < size && !error) {
+		len = size - i > sizeof(buffer) ? sizeof(buffer) : size - i;
+		error = vn_rdwr(UIO_READ, vp, buffer, len, i,
 		    UIO_SYSSPACE, IO_NODELOCKED, cred, NOCRED,
 		    &resid, curthread);
-		SHA256_Update(&ctx, buffer, sizeof(buffer));
+		SHA256_Update(&ctx, buffer, len);
+		i += len;
 	}
 
-	i = size - size % sizeof(buffer);
-	error = vn_rdwr(UIO_READ, vp, buffer, size % sizeof(buffer), i,
-	    UIO_SYSSPACE, IO_NODELOCKED, cred, NOCRED, &resid, curthread);
-	SHA256_Update(&ctx, buffer, sizeof(buffer));
+	if (error)
+		return (EPERM);
+
 	SHA256_Final(hash, &ctx);
 	if (error)
-		printf("Error: %d\n", error);
+		return (EPERM);
 	else
 		print_hex(hash, sizeof(hash));
 
