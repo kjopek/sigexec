@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, 2012 Konrad Jopek <kjopek student.agh.edu.pl>\
+ * Copyright (C) 2011, 2012 Konrad Jopek <kjopek student.agh.edu.pl>
  * All right reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,64 +44,50 @@
 #include <sys/syslog.h>
 #include <sys/stat.h>
 #include <sys/imgact.h>
+#include <sys/extattr.h>
 
 #include <security/mac/mac_policy.h>
 #include <crypto/sha2/sha2.h>
 
 #include "uECC.h"
 
+static uint8_t pubkey[2*uECC_BYTES] = {
+
+};
+
 void sigexec_init(struct mac_policy_conf *conf);
 void sigexec_destroy(struct mac_policy_conf *conf);
-int sigexec_check_vnode_exec(struct ucred *cred,
-    struct vnode *vp, struct label *label, struct image_params *img_params,
-    struct label *img_label);
+int sigexec_check_vnode_exec(struct ucred *cred, struct vnode *vp,
+	struct label *label, struct image_params *img_params,
+	struct label *img_label);
 
-void
-sigexec_init(struct mac_policy_conf *conf)
+static int
+verify_file(struct ucred *cred, struct vnode *vp)
 {
-	printf("SigEXEC initialized\n");
-}
-
-void
-sigexec_destroy(struct mac_policy_conf *conf)
-{
-	printf("SigEXEC destroyed\n");
-}
-
-static void
-print_hex(char *buffer, size_t len)
-{
-	size_t i;
-
-	for (i = 0; i < len; ++i)
-		printf("%02hhx", buffer[i]);
-	printf("\n");
-}
-
-int 
-sigexec_check_vnode_exec(struct ucred *cred,
-    struct vnode *vp,
-    struct label *label,
-    struct image_params *img_params,
-    struct label *img_label)
-{
-	char buffer[1024];
+	char buffer[256];
 	char hash[SHA256_DIGEST_LENGTH > uECC_BYTES ? SHA256_DIGEST_LENGTH : uECC_BYTES];
+	char signature[2*uECC_BYTES];
+
 	int error, len;
 	ssize_t resid;
 	off_t i, size;
 	SHA256_CTX ctx;
 	struct stat stat;
 
-	SHA256_Init(&ctx);
+	i = 0;
 	error = vn_stat(vp, &stat, cred, NOCRED, curthread);
+	size = stat.st_size;
 	if (error)
 		return (EPERM);
 
-	size = stat.st_size;
-	printf("size: %llu, modulo: %llu, offset: %llu\n", (unsigned long long) size,
-	    (unsigned long long) size % sizeof(buffer), (unsigned long long) size - size % sizeof(buffer));
-	i = 0;
+	len = sizeof(signature);
+	error = vn_extattr_get(vp, IO_NODELOCKED, EXTATTR_NAMESPACE_SYSTEM, 
+	    "signature", &len, signature, curthread);
+	if (error)
+		return (0); /* permissive */
+
+	printf("vn_extattr_get successful\n");
+	SHA256_Init(&ctx);
 	while(i < size && !error) {
 		len = size - i > sizeof(buffer) ? sizeof(buffer) : size - i;
 		error = vn_rdwr(UIO_READ, vp, buffer, len, i,
@@ -115,12 +101,32 @@ sigexec_check_vnode_exec(struct ucred *cred,
 		return (EPERM);
 
 	SHA256_Final(hash, &ctx);
-	if (error)
+	if (!uECC_verify(pubkey, hash, signature))
 		return (EPERM);
-	else
-		print_hex(hash, sizeof(hash));
 
 	return (0);
+
+}
+
+void
+sigexec_init(struct mac_policy_conf *conf)
+{
+	printf("SigEXEC initialized\n");
+}
+
+void
+sigexec_destroy(struct mac_policy_conf *conf)
+{
+	printf("SigEXEC destroyed\n");
+}
+
+
+int 
+sigexec_check_vnode_exec(struct ucred *cred, struct vnode *vp,
+    struct label *label, struct image_params *img_params,
+    struct label *img_label)
+{
+	return (verify_file(cred, vp));
 }
 
 static struct mac_policy_ops sigexec_ops =
