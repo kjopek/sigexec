@@ -146,7 +146,6 @@ sigexec_destroy(struct mac_policy_conf *conf)
 	printf("SigEXEC destroyed\n");
 }
 
-
 int 
 sigexec_check_vnode_exec(struct ucred *cred, struct vnode *vp,
     struct label *label, struct image_params *img_params,
