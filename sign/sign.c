@@ -80,7 +80,6 @@ main(int argc, char ** argv)
 		return (3);
 	}
 	uECC_sign(privkey, hash, signature);	
-	free(hash);
 
 	if (extattr_set_file(argv[0], EXTATTR_NAMESPACE_SYSTEM, "signature",
 	    signature, uECC_BYTES) < 0) {
