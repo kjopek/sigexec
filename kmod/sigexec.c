@@ -52,7 +52,15 @@
 #include "uECC.h"
 
 static uint8_t pubkey[2*uECC_BYTES] = {
-// TODO: static public key for verification
+/* TODO: add your public key for verification. The key below is only for
+ * example!
+ */
+  0xd7, 0x5b, 0x0c, 0x52, 0x3e, 0xe2, 0xee, 0xcf, 0x0d, 0xd9, 0x0a, 0x80,
+  0x60, 0x1d, 0xb5, 0xb9, 0x64, 0x10, 0xef, 0x38, 0x91, 0xf7, 0xae, 0xcf,
+  0x19, 0x6d, 0x57, 0x71, 0xb5, 0x9f, 0xcd, 0x13, 0xca, 0x16, 0xf1, 0x68,
+  0xd9, 0x33, 0x48, 0x5d, 0x68, 0xaa, 0x89, 0xb6, 0x56, 0xdd, 0xac, 0x98,
+  0x2d, 0x35, 0xee, 0xbb, 0x72, 0x43, 0x42, 0xe9, 0x98, 0xb7, 0x06, 0xd3,
+  0xc6, 0xdd, 0x31, 0xda
 };
 
 void sigexec_init(struct mac_policy_conf *conf);
@@ -60,6 +68,18 @@ void sigexec_destroy(struct mac_policy_conf *conf);
 int sigexec_check_vnode_exec(struct ucred *cred, struct vnode *vp,
 	struct label *label, struct image_params *img_params,
 	struct label *img_label);
+
+#ifdef DEBUG
+static void
+print_hex(char *buffer, size_t len)
+{
+	size_t i;
+
+	for (i = 0; i < len; ++i)
+		printf("%02hhx", buffer[i]);
+	printf("\n");
+}
+#endif
 
 static int
 verify_file(struct ucred *cred, struct vnode *vp)
@@ -86,7 +106,10 @@ verify_file(struct ucred *cred, struct vnode *vp)
 	if (error)
 		return (0); /* permissive */
 
-	printf("vn_extattr_get successful\n");
+#ifdef DEBUG
+	printf("Signature: ");
+	print_hex(signature, sizeof(signature));
+#endif
 	SHA256_Init(&ctx);
 	while(i < size && !error) {
 		len = size - i > sizeof(buffer) ? sizeof(buffer) : size - i;
@@ -96,11 +119,14 @@ verify_file(struct ucred *cred, struct vnode *vp)
 		SHA256_Update(&ctx, buffer, len);
 		i += len;
 	}
-
 	if (error)
 		return (EPERM);
 
 	SHA256_Final(hash, &ctx);
+#ifdef DEBUG
+	printf("Hash: ");
+	print_hex(hash, sizeof(hash));
+#endif
 	if (!uECC_verify(pubkey, hash, signature))
 		return (EPERM);
 
