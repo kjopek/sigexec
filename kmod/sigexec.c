@@ -52,7 +52,7 @@
 #include "uECC.h"
 
 static uint8_t pubkey[2*uECC_BYTES] = {
-
+// TODO: static public key for verification
 };
 
 void sigexec_init(struct mac_policy_conf *conf);
