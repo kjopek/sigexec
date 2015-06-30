@@ -11,29 +11,68 @@
 void
 usage(void)
 {
-	fprintf(stderr, "Usage: sign [-c] -f keyfile file_to_sign\n");
+	fprintf(stderr, "Usage: sign [-c] [-v] -f keyfile file_to_sign\n");
+}
+
+void
+print_hex(uint8_t *buffer, int len)
+{
+	int i;
+
+	for (i = 0; i < len; ++i)
+		fprintf(stderr, "%02hhx", buffer[i]);
+	fprintf(stderr, "\n");
+}
+
+uint8_t *
+hash_file(char *filename)
+{
+	FILE *fp;
+	SHA256_CTX ctx;
+	char buffer[4096];
+	uint8_t *ret;
+	size_t len;
+
+	fp = fopen(filename, "rb");
+	if (fp == NULL) {
+		perror("fopen");
+		return (NULL);
+	}
+
+	SHA256_Init(&ctx);
+	while ((len = fread(buffer, 1, sizeof(buffer), fp)) > 0) {
+		SHA256_Update(&ctx, buffer, len);
+	}
+	fclose(fp);
+	ret = malloc(uECC_BYTES);
+	SHA256_Final(ret, &ctx);
+	return (ret);
 }
 
 int
 main(int argc, char ** argv)
 {
-	int genkey, ch;
+	int genkey, ch, verbose;
 	FILE *fp;
 	char *keyfile;
-	uint8_t hash[uECC_BYTES > 65 ? uECC_BYTES : 65];
 	uint8_t pubkey[uECC_BYTES * 2];
 	uint8_t privkey[uECC_BYTES];
 	uint8_t signature[uECC_BYTES * 2];
+	uint8_t *hash;
 
 	genkey = 0;
 	keyfile = NULL;
-	while((ch = getopt(argc, argv, "cf:")) != -1) {
+	verbose = 0;
+	while((ch = getopt(argc, argv, "cf:v")) != -1) {
 		switch(ch) {
 		case 'c':
 			genkey = 1;
 			break;
 		case 'f':
 			keyfile = optarg;
+			break;
+		case 'v':
+			verbose = 1;
 			break;
 		case '?':
 		default:
@@ -65,28 +104,39 @@ main(int argc, char ** argv)
 		fread(pubkey, sizeof(pubkey), 1, fp);
 		fread(privkey, sizeof(privkey), 1, fp);
 	}
+	if (verbose) {
+		fprintf(stderr, "Public key:\t");
+		print_hex(pubkey, uECC_BYTES * 2);
+		fprintf(stderr, "Private key:\t");
+		print_hex(privkey, uECC_BYTES);
+	}
 	fclose(fp);
+	if (!genkey) {
+		if (argc != 1) {
+			fprintf(stderr, "Missing file to sign.");
+			usage();
+			return (2);
+		}
 
-	if (!genkey && argc != 1) {
-		fprintf(stderr, "Missing file to sign.");
-		usage();
-		return (2);
-	}
-
-	if (SHA256_File(argv[0], (char*) hash) == NULL) {
-		fprintf(stderr, "Could not open file: %s\n", argv[0]);
-		usage();
+		if ((hash = hash_file(argv[0])) == NULL) {
+			fprintf(stderr, "Could not open file: %s\n", argv[0]);
+			usage();
+			return (3);
+		}
+		uECC_sign(privkey, hash, signature);	
+		if (verbose) {
+			fprintf(stderr, "Hash: ");
+			print_hex(hash, uECC_BYTES);
+			fprintf(stderr, "Signature: ");
+			print_hex(signature, uECC_BYTES * 2);
+		}
+		if (extattr_set_file(argv[0], EXTATTR_NAMESPACE_SYSTEM, "signature",
+		    signature, 2*uECC_BYTES) < 0) {
+			fprintf(stderr, "Could not save signature.\n");
+			return (4);
+		}
+		fprintf(stdout, "File %s was signed.\n", argv[0]);
 		free(hash);
-		return (3);
 	}
-	uECC_sign(privkey, hash, signature);	
-	free(hash);
-
-	if (extattr_set_file(argv[0], EXTATTR_NAMESPACE_SYSTEM, "signature",
-	    signature, uECC_BYTES) < 0) {
-		fprintf(stderr, "Could not save signature.\n");
-		return (4);
-	}
-	fprintf(stdout, "File %s was signed.\n", argv[0]);
 	return (0);
 }
