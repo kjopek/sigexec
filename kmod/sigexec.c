@@ -139,13 +139,13 @@ verify_file(struct ucred *cred, struct vnode *vp)
 static void
 sigexec_init(struct mac_policy_conf *conf)
 {
-	printf("SigEXEC initialized\n");
+	printf("SigEXEC initialized.\n");
 }
 
 static void
 sigexec_destroy(struct mac_policy_conf *conf)
 {
-	printf("SigEXEC destroyed\n");
+	printf("SigEXEC destroyed.\n");
 }
 
 static int 
