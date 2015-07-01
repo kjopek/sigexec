@@ -131,7 +131,6 @@ verify_file(struct ucred *cred, struct vnode *vp)
 		return (EPERM);
 
 	return (0);
-
 }
 
 void
