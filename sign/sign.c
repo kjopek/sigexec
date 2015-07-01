@@ -43,8 +43,12 @@ hash_file(char *filename)
 	while ((len = fread(buffer, 1, sizeof(buffer), fp)) > 0) {
 		SHA256_Update(&ctx, buffer, len);
 	}
+
 	fclose(fp);
 	ret = malloc(uECC_BYTES);
+	if (ret == NULL)
+		return(NULL);
+
 	SHA256_Final(ret, &ctx);
 	return (ret);
 }
