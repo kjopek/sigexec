@@ -63,11 +63,13 @@ static uint8_t pubkey[2*uECC_BYTES] = {
   0xc6, 0xdd, 0x31, 0xda
 };
 
-void sigexec_init(struct mac_policy_conf *conf);
-void sigexec_destroy(struct mac_policy_conf *conf);
-int sigexec_check_vnode_exec(struct ucred *cred, struct vnode *vp,
+static void sigexec_init(struct mac_policy_conf *conf);
+static void sigexec_destroy(struct mac_policy_conf *conf);
+static int sigexec_check_vnode_exec(struct ucred *cred, struct vnode *vp,
 	struct label *label, struct image_params *img_params,
 	struct label *img_label);
+static int sigexec_kld_check_load(struct ucred *cred, struct vnode *vp,
+	struct label *vplabel);
 
 #ifdef DEBUG
 static void
@@ -133,19 +135,19 @@ verify_file(struct ucred *cred, struct vnode *vp)
 	return (0);
 }
 
-void
+static void
 sigexec_init(struct mac_policy_conf *conf)
 {
 	printf("SigEXEC initialized\n");
 }
 
-void
+static void
 sigexec_destroy(struct mac_policy_conf *conf)
 {
 	printf("SigEXEC destroyed\n");
 }
 
-int 
+static int 
 sigexec_check_vnode_exec(struct ucred *cred, struct vnode *vp,
     struct label *label, struct image_params *img_params,
     struct label *img_label)
@@ -153,11 +155,17 @@ sigexec_check_vnode_exec(struct ucred *cred, struct vnode *vp,
 	return (verify_file(cred, vp));
 }
 
+static int sigexec_kld_check_load(struct ucred *cred, struct vnode *vp,
+	struct label *vplabel)
+{
+	return (verify_file(cred, vp));
+}
 static struct mac_policy_ops sigexec_ops =
 {
 	.mpo_init = sigexec_init,
 	.mpo_destroy = sigexec_destroy,
 	.mpo_vnode_check_exec = sigexec_check_vnode_exec,
+	.mpo_kld_check_load = sigexec_kld_check_load
 };
 
 MAC_POLICY_SET(&sigexec_ops, mac_sigexec, "SigEXEC module",
