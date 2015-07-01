@@ -107,7 +107,7 @@ verify_file(struct ucred *cred, struct vnode *vp)
 	error = vn_extattr_get(vp, IO_NODELOCKED, EXTATTR_NAMESPACE_SYSTEM, 
 	    "signature", &len, signature, curthread);
 	if (error)
-		return (0); /* permissive */
+		return (EPERM);
 
 #ifdef DEBUG
 	printf("Signature: ");
