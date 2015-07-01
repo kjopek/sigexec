@@ -70,6 +70,7 @@ static int sigexec_check_vnode_exec(struct ucred *cred, struct vnode *vp,
 	struct label *img_label);
 static int sigexec_kld_check_load(struct ucred *cred, struct vnode *vp,
 	struct label *vplabel);
+static int sigexec_kld_check_stat(struct ucred *cred);
 
 #ifdef DEBUG
 static void
@@ -160,12 +161,19 @@ static int sigexec_kld_check_load(struct ucred *cred, struct vnode *vp,
 {
 	return (verify_file(cred, vp));
 }
+
+static int sigexec_kld_check_stat(struct ucred *cred)
+{
+	return (EPERM);
+}
+
 static struct mac_policy_ops sigexec_ops =
 {
 	.mpo_init = sigexec_init,
 	.mpo_destroy = sigexec_destroy,
 	.mpo_vnode_check_exec = sigexec_check_vnode_exec,
-	.mpo_kld_check_load = sigexec_kld_check_load
+	.mpo_kld_check_load = sigexec_kld_check_load,
+	.mpo_kld_check_stat = sigexec_kld_check_stat
 };
 
 MAC_POLICY_SET(&sigexec_ops, mac_sigexec, "SigEXEC module",
