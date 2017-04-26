@@ -64,7 +64,7 @@ main(int argc, char ** argv)
 	genkey = 0;
 	keyfile = NULL;
 	verbose = 0;
-	while((ch = getopt(argc, argv, "cf:v")) != -1) {
+	while ((ch = getopt(argc, argv, "cf:v")) != -1) {
 		switch(ch) {
 		case 'c':
 			genkey = 1;
@@ -83,7 +83,7 @@ main(int argc, char ** argv)
 
 	argc -= optind;
 	argv += optind;
-	
+
 	if (keyfile == NULL) {
 		fprintf(stderr, "Key file was not specified.\n");
 		usage();
@@ -105,12 +105,14 @@ main(int argc, char ** argv)
 		fread(pubkey, sizeof(pubkey), 1, fp);
 		fread(privkey, sizeof(privkey), 1, fp);
 	}
+
 	if (verbose) {
 		fprintf(stderr, "Public key:\t");
 		print_hex(pubkey, uECC_BYTES * 2);
 		fprintf(stderr, "Private key:\t");
 		print_hex(privkey, uECC_BYTES);
 	}
+
 	fclose(fp);
 	if (!genkey) {
 		if (argc != 1) {
@@ -124,18 +126,22 @@ main(int argc, char ** argv)
 			usage();
 			return (3);
 		}
-		uECC_sign(privkey, hash, signature);	
+
+		uECC_sign(privkey, hash, signature);
+
 		if (verbose) {
 			fprintf(stderr, "Hash: ");
 			print_hex(hash, uECC_BYTES);
 			fprintf(stderr, "Signature: ");
 			print_hex(signature, uECC_BYTES * 2);
 		}
-		if (extattr_set_file(argv[0], EXTATTR_NAMESPACE_SYSTEM, "signature",
-		    signature, 2*uECC_BYTES) < 0) {
+
+		if (extattr_set_file(argv[0], EXTATTR_NAMESPACE_SYSTEM,
+		    "signature", signature, 2*uECC_BYTES) < 0) {
 			fprintf(stderr, "Could not save signature.\n");
 			return (4);
 		}
+
 		fprintf(stdout, "File %s was signed.\n", argv[0]);
 		free(hash);
 	}
