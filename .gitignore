@@ -8,3 +8,6 @@ x86
 sign/sign
 *.o
 *.ko
+.depend
+*.debug
+*.full
