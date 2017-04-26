@@ -1,16 +1,18 @@
+#include <sys/types.h>
+#include <sys/extattr.h>
+
+#include <err.h>
+#include <sha256.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <sha256.h>
 #include "uECC.h"
-
-#include <sys/types.h>
-#include <sys/extattr.h>
 
 void
 usage(void)
 {
+
 	fprintf(stderr, "Usage: sign [-c] [-v] -f keyfile file_to_sign\n");
 }
 
@@ -34,17 +36,17 @@ hash_file(char *filename)
 	size_t len;
 
 	fp = fopen(filename, "rb");
-	if (fp == NULL) {
-		perror("fopen");
-		return (NULL);
-	}
+	if (fp == NULL)
+		err(1, "fopen(3) failed");
+
 
 	SHA256_Init(&ctx);
-	while ((len = fread(buffer, 1, sizeof(buffer), fp)) > 0) {
+	while ((len = fread(buffer, 1, sizeof(buffer), fp)) > 0)
 		SHA256_Update(&ctx, buffer, len);
-	}
+
 	fclose(fp);
 	ret = malloc(uECC_BYTES);
+
 	if (ret)
 		SHA256_Final(ret, &ctx);
 	return (ret);
