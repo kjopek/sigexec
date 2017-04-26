@@ -47,7 +47,7 @@
 #include <sys/extattr.h>
 
 #include <security/mac/mac_policy.h>
-#include <crypto/sha2/sha2.h>
+#include <crypto/sha2/sha256.h>
 
 #include "uECC.h"
 
