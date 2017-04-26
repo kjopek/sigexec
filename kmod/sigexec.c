@@ -119,11 +119,11 @@ verify_file(struct ucred *cred, struct vnode *vp)
 		error = vn_rdwr(UIO_READ, vp, buffer, len, i,
 		    UIO_SYSSPACE, IO_NODELOCKED, cred, NOCRED,
 		    &resid, curthread);
+		if (error)
+			return (EPERM);
 		SHA256_Update(&ctx, buffer, len);
 		i += len;
 	}
-	if (error)
-		return (EPERM);
 
 	SHA256_Final(hash, &ctx);
 #ifdef DEBUG
@@ -148,7 +148,7 @@ sigexec_destroy(struct mac_policy_conf *conf)
 	printf("SigEXEC destroyed.\n");
 }
 
-static int 
+static int
 sigexec_check_vnode_exec(struct ucred *cred, struct vnode *vp,
     struct label *label, struct image_params *img_params,
     struct label *img_label)
